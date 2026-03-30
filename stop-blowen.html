@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Stop met blowen</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0a0f0b;
+      color: #e8f0e9;
+      font-family: Georgia, serif;
+      min-height: 100vh;
+    }
+
+    /* ── PIN SCREEN ── */
+    #pin-screen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .pin-logo { font-size: 48px; margin-bottom: 16px; }
+    .pin-title { font-size: 22px; font-weight: bold; color: #fff; margin-bottom: 6px; }
+    .pin-sub { font-size: 13px; color: #5a7a5d; font-family: monospace; margin-bottom: 36px; }
+    .pin-dots { display: flex; gap: 14px; margin-bottom: 32px; }
+    .pin-dot {
+      width: 18px; height: 18px;
+      border-radius: 50%;
+      border: 2px solid #2a6a2e;
+      background: transparent;
+      transition: background 0.15s;
+    }
+    .pin-dot.filled { background: #5dcc6a; border-color: #5dcc6a; }
+    .pin-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      width: 240px;
+    }
+    .pin-btn {
+      background: #0d2410;
+      border: 1px solid #1a3a1e;
+      border-radius: 10px;
+      color: #e8f0e9;
+      font-size: 22px;
+      font-family: monospace;
+      padding: 18px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .pin-btn:active { background: #1a4a1e; }
+    .pin-btn.zero { grid-column: 2; }
+    .pin-btn.del { background: transparent; border-color: transparent; color: #5a7a5d; font-size: 18px; }
+    .pin-error { color: #cc5d5d; font-size: 13px; font-family: monospace; margin-top: 16px; min-height: 20px; }
+
+    /* ── APP ── */
+    #app { display: none; max-width: 480px; margin: 0 auto; padding-bottom: 50px; }
+
+    .header {
+      background: linear-gradient(160deg, #0d2410 0%, #0a1a0c 100%);
+      padding: 28px 20px 20px;
+      border-bottom: 1px solid #1a3a1e;
+    }
+    .header-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
+    .day-badge {
+      display: inline-block;
+      background: #1a4a1e; color: #5dcc6a;
+      font-size: 11px; font-family: monospace; letter-spacing: 2px;
+      padding: 3px 8px; border-radius: 3px; margin-bottom: 8px;
+    }
+    .header-title { font-size: 22px; font-weight: bold; color: #fff; }
+    .header-sub { font-size: 12px; color: #5a7a5d; font-family: monospace; margin-top: 4px; }
+    .streak-circle {
+      width: 72px; height: 72px; border-radius: 50%;
+      border: 2px solid #2a6a2e; background: #0f2a12;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .streak-number { font-size: 26px; font-weight: bold; color: #5dcc6a; line-height: 1; }
+    .streak-label { font-size: 10px; color: #5a7a5d; font-family: monospace; }
+    .next-milestone {
+      display: flex; align-items: center; gap: 12px;
+      background: #0f2a12; border: 1px solid #2a6a2e;
+      border-radius: 10px; padding: 10px 14px;
+    }
+    .next-emoji { font-size: 22px; }
+    .next-label { font-size: 10px; color: #5a7a5d; font-family: monospace; letter-spacing: 1px; }
+    .next-title { font-size: 14px; color: #c8e6ca; font-weight: bold; }
+    .next-days { margin-left: auto; color: #5dcc6a; font-weight: bold; font-family: monospace; font-size: 14px; }
+
+    .tabs {
+      display: flex; border-bottom: 1px solid #1a3a1e;
+      background: #0a0f0b; position: sticky; top: 0; z-index: 10;
+    }
+    .tab-btn {
+      flex: 1; padding: 14px 4px;
+      background: transparent; border: none; border-bottom: 2px solid transparent;
+      color: #4a6a4d; font-size: 12px; cursor: pointer;
+      font-family: monospace; letter-spacing: 0.5px;
+    }
+    .tab-btn.active { color: #5dcc6a; border-bottom-color: #5dcc6a; }
+
+    .content { padding: 16px; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    .card {
+      background: #0d1a0f; border: 1px solid #1a3a1e;
+      border-radius: 12px; padding: 16px; margin-bottom: 14px;
+    }
+    .card-title {
+      font-size: 13px; color: #5dcc6a; font-family: monospace;
+      letter-spacing: 1px; text-transform: uppercase; margin-bottom: 14px;
+    }
+
+    .progress-bg { background: #1a3a1e; border-radius: 99px; height: 8px; overflow: hidden; margin-bottom: 6px; }
+    .progress-fill {
+      background: linear-gradient(90deg, #2a8a30, #5dcc6a);
+      height: 100%; border-radius: 99px; transition: width 0.5s ease;
+    }
+    .progress-text { font-size: 12px; color: #5a7a5d; font-family: monospace; }
+
+    .task-row {
+      display: flex; align-items: center; gap: 10px;
+      width: 100%; background: #0a1a0c; border: 1px solid #1a3a1e;
+      border-radius: 8px; padding: 12px; margin-bottom: 8px;
+      cursor: pointer; text-align: left; transition: all 0.2s;
+    }
+    .task-row.done { background: #0f2a12; border-color: #2a6a2e; }
+    .task-icon { font-size: 18px; flex-shrink: 0; }
+    .task-label { flex: 1; font-size: 14px; color: #c8e6ca; }
+    .task-check { font-size: 18px; }
+
+    .tip-card { background: #0f1a10; border: 1px solid #1a4a1e; }
+    .tip-label { font-size: 11px; color: #5dcc6a; font-family: monospace; letter-spacing: 1px; margin-bottom: 8px; }
+    .tip-text { font-size: 15px; color: #e8f0e9; line-height: 1.5; margin-bottom: 12px; }
+    .tip-btn { background: transparent; border: none; color: #5dcc6a; font-size: 12px; cursor: pointer; font-family: monospace; padding: 0; }
+
+    .anchor-card { background: #0f1525; border: 1px solid #1a2a4a; }
+    .anchor-title { font-size: 13px; color: #6ab0cc; font-family: monospace; letter-spacing: 1px; margin-bottom: 12px; }
+    .anchor-item { font-size: 14px; color: #a8c8e0; padding: 8px 0; border-bottom: 1px solid #1a2a3a; line-height: 1.4; }
+    .anchor-item:last-child { border-bottom: none; }
+
+    .milestone-row {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 0; border-bottom: 1px solid #1a3a1e; opacity: 0.45;
+    }
+    .milestone-row:last-child { border-bottom: none; }
+    .milestone-row.done, .milestone-row.active { opacity: 1; }
+    .milestone-emoji { font-size: 22px; flex-shrink: 0; }
+    .milestone-label { font-size: 14px; color: #c8e6ca; font-weight: bold; }
+    .milestone-date { font-size: 11px; color: #5a7a5d; font-family: monospace; margin-top: 2px; }
+    .milestone-days { font-size: 12px; color: #5dcc6a; font-family: monospace; flex-shrink: 0; }
+
+    .stats-card { background: #0f1f12; border: 1px solid #1a3a1e; }
+    .stat-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #1a3a1e; }
+    .stat-row:last-child { border-bottom: none; }
+    .stat-label { font-size: 13px; color: #8aa88c; }
+    .stat-value { font-size: 15px; color: #5dcc6a; font-weight: bold; font-family: monospace; }
+
+    .craving-sub { font-size: 12px; color: #5a7a5d; margin-bottom: 12px; line-height: 1.5; }
+    textarea {
+      width: 100%; background: #0a1a0c; border: 1px solid #2a6a2e;
+      border-radius: 8px; color: #e8f0e9; font-size: 14px;
+      padding: 12px; font-family: Georgia, serif; resize: none;
+      line-height: 1.5; outline: none; margin-bottom: 10px;
+    }
+    .save-btn {
+      background: #2a6a2e; border: none; border-radius: 8px;
+      color: #fff; font-size: 14px; font-weight: bold;
+      padding: 12px 20px; cursor: pointer; width: 100%;
+      font-family: monospace; letter-spacing: 1px;
+    }
+    .save-btn:disabled { background: #1a3a1e; color: #3a5a3e; cursor: not-allowed; }
+    .empty-state { text-align: center; color: #4a6a4d; font-size: 14px; padding: 30px 0; line-height: 1.8; }
+    .craving-entry { padding: 12px 0; border-bottom: 1px solid #1a3a1e; }
+    .craving-entry:last-child { border-bottom: none; }
+    .craving-meta { font-size: 11px; color: #5a7a5d; font-family: monospace; margin-bottom: 6px; }
+    .craving-text { font-size: 14px; color: #c8e6ca; line-height: 1.5; margin-bottom: 6px; }
+    .delete-btn { background: transparent; border: none; color: #5a3a3a; font-size: 11px; cursor: pointer; font-family: monospace; padding: 0; }
+    .delete-btn:hover { color: #cc5d5d; }
+  </style>
+</head>
+<body>
+
+<!-- PIN SCREEN -->
+<div id="pin-screen">
+  <div class="pin-logo">🌿</div>
+  <div class="pin-title">Stop met blowen</div>
+  <div class="pin-sub">Voer je code in</div>
+  <div class="pin-dots">
+    <div class="pin-dot" id="d0"></div>
+    <div class="pin-dot" id="d1"></div>
+    <div class="pin-dot" id="d2"></div>
+    <div class="pin-dot" id="d3"></div>
+  </div>
+  <div class="pin-grid">
+    <button class="pin-btn" onclick="pinPress('1')">1</button>
+    <button class="pin-btn" onclick="pinPress('2')">2</button>
+    <button class="pin-btn" onclick="pinPress('3')">3</button>
+    <button class="pin-btn" onclick="pinPress('4')">4</button>
+    <button class="pin-btn" onclick="pinPress('5')">5</button>
+    <button class="pin-btn" onclick="pinPress('6')">6</button>
+    <button class="pin-btn" onclick="pinPress('7')">7</button>
+    <button class="pin-btn" onclick="pinPress('8')">8</button>
+    <button class="pin-btn" onclick="pinPress('9')">9</button>
+    <button class="pin-btn zero" onclick="pinPress('0')">0</button>
+    <button class="pin-btn del" onclick="pinDel()">⌫</button>
+  </div>
+  <div class="pin-error" id="pin-error"></div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <div class="header">
+    <div class="header-top">
+      <div>
+        <div class="day-badge" id="day-badge">DAG 0</div>
+        <div class="header-title">Stop met blowen</div>
+        <div class="header-sub">Gestart 30 maart 2026 · Hijama dag</div>
+      </div>
+      <div class="streak-circle">
+        <span class="streak-number" id="streak-num">0</span>
+        <span class="streak-label">dagen</span>
+      </div>
+    </div>
+    <div class="next-milestone" id="next-milestone-box">
+      <span class="next-emoji" id="next-emoji"></span>
+      <div>
+        <div class="next-label">VOLGENDE MIJLPAAL</div>
+        <div class="next-title" id="next-title"></div>
+      </div>
+      <div class="next-days" id="next-days"></div>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('today', this)">☀️ Vandaag</button>
+    <button class="tab-btn" onclick="switchTab('milestones', this)">🏁 Mijlpalen</button>
+    <button class="tab-btn" onclick="switchTab('cravings', this)">🧠 Cravings</button>
+  </div>
+
+  <div class="content">
+
+    <!-- TODAY -->
+    <div class="tab-panel active" id="tab-today">
+      <div class="card">
+        <div class="card-title">Vandaag voltooid</div>
+        <div class="progress-bg"><div class="progress-fill" id="prog-fill" style="width:0%"></div></div>
+        <div class="progress-text" id="prog-text">0 / 5 taken</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Dagelijkse check-in</div>
+        <div id="task-list"></div>
+      </div>
+      <div class="card tip-card">
+        <div class="tip-label">💡 CRAVING TIP</div>
+        <div class="tip-text" id="tip-text"></div>
+        <button class="tip-btn" onclick="newTip()">Andere tip →</button>
+      </div>
+      <div class="card anchor-card">
+        <div class="anchor-title">🎯 Jouw ankerpunten</div>
+        <div class="anchor-item">👧 Je dochter (7) en zoon (3) kijken naar jou</div>
+        <div class="anchor-item">🚗 Rijbewijs vóór juli 2026</div>
+        <div class="anchor-item">❤️ Je moeder en gezin trots maken</div>
+        <div class="anchor-item">💪 Gezondheid &amp; afvallen</div>
+        <div class="anchor-item">💰 Schuldsanering afronden</div>
+      </div>
+    </div>
+
+    <!-- MILESTONES -->
+    <div class="tab-panel" id="tab-milestones">
+      <div class="card">
+        <div class="card-title">Jouw mijlpalen</div>
+        <div id="milestone-list"></div>
+      </div>
+      <div class="card stats-card">
+        <div class="card-title">📊 Jouw stats</div>
+        <div id="stats-list"></div>
+      </div>
+    </div>
+
+    <!-- CRAVINGS -->
+    <div class="tab-panel" id="tab-cravings">
+      <div class="card">
+        <div class="card-title">🧠 Craving logboek</div>
+        <div class="craving-sub">Schrijf op wat je voelt als de drang komt. Het helpt echt.</div>
+        <textarea id="craving-input" rows="4" placeholder="Wat voel je nu? Wat triggerde het? Hoe laat is het?..."></textarea>
+        <button class="save-btn" id="save-btn" onclick="saveCraving()" disabled>Opslaan →</button>
+      </div>
+      <div id="craving-log"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  // ── CONFIG ──
+  const PIN = "4857";
+  const START = new Date("2026-03-30T00:00:00");
+
+  const TASKS = [
+    { id: "no_smoke",        icon: "🚫", label: "Vandaag niet geblowd" },
+    { id: "drink_water",     icon: "💧", label: "Voldoende water gedronken" },
+    { id: "outside",         icon: "🚶", label: "Buiten geweest / bewogen" },
+    { id: "craving_survived",icon: "💥", label: "Craving overwonnen" },
+    { id: "kids_moment",     icon: "👨‍👧‍👦", label: "Bewust moment met kids gehad" },
+  ];
+
+  const MILESTONES = [
+    { days: 7,  label: "1 week clean",         emoji: "🏁", date: "6 april" },
+    { days: 30, label: "1 maand clean",         emoji: "💪", date: "30 april" },
+    { days: 60, label: "2 maanden clean",       emoji: "🔥", date: "30 mei" },
+    { days: 92, label: "Rijbewijs keuring ✅",  emoji: "🚗", date: "Voor juli" },
+  ];
+
+  const TIPS = [
+    "Wacht 20 minuten. De craving gaat altijd weg.",
+    "Denk aan je dochter (7) en zoon (3). Ze kijken naar jou.",
+    "Jij hebt al 18 dagen gehaald. Je brein liegt als het zegt dat je niet kan.",
+    "Rijbewijs vóór juli. Dat is concreet. Dat is echt.",
+    "Één trekje bestaat niet. Dat weet je zelf ook.",
+    "Ga naar buiten. Vijf minuten. Nu.",
+    "Stuur iemand een berichtje. Afleiding werkt.",
+    "Hijama dag 1 was vandaag. Je begon bewust. Hou dat vast.",
+  ];
+
+  // ── PIN ──
+  let pinInput = "";
+  function pinPress(d) {
+    if (pinInput.length >= 4) return;
+    pinInput += d;
+    updateDots();
+    if (pinInput.length === 4) checkPin();
+  }
+  function pinDel() {
+    pinInput = pinInput.slice(0, -1);
+    updateDots();
+    document.getElementById("pin-error").textContent = "";
+  }
+  function updateDots() {
+    for (let i = 0; i < 4; i++) {
+      document.getElementById("d" + i).classList.toggle("filled", i < pinInput.length);
+    }
+  }
+  function checkPin() {
+    if (pinInput === PIN) {
+      document.getElementById("pin-screen").style.display = "none";
+      document.getElementById("app").style.display = "block";
+      initApp();
+    } else {
+      document.getElementById("pin-error").textContent = "Verkeerde code, probeer opnieuw";
+      pinInput = "";
+      updateDots();
+    }
+  }
+
+  // ── HELPERS ──
+  function todayKey() { return new Date().toISOString().split("T")[0]; }
+  function daysSince() { return Math.floor((new Date() - START) / 86400000); }
+  function load(k, fb) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : fb; } catch { return fb; } }
+  function save(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
+
+  // ── STATE ──
+  let tasks = {};
+  let cravings = [];
+  let currentTip = TIPS[0];
+
+  // ── INIT ──
+  function initApp() {
+    tasks = load("tasks_" + todayKey(), {});
+    cravings = load("cravings", []);
+    currentTip = TIPS[Math.floor(Math.random() * TIPS.length)];
+
+    const days = daysSince();
+    document.getElementById("day-badge").textContent = "DAG " + days;
+    document.getElementById("streak-num").textContent = days;
+
+    const next = MILESTONES.find(m => m.days > days);
+    if (next) {
+      document.getElementById("next-emoji").textContent = next.emoji;
+      document.getElementById("next-title").textContent = next.label;
+      document.getElementById("next-days").textContent = "nog " + (next.days - days) + "d";
+    } else {
+      document.getElementById("next-milestone-box").style.display = "none";
+    }
+
+    renderTasks();
+    renderMilestones();
+    renderStats();
+    renderCravings();
+    document.getElementById("tip-text").textContent = currentTip;
+
+    document.getElementById("craving-input").addEventListener("input", function() {
+      document.getElementById("save-btn").disabled = !this.value.trim();
+    });
+  }
+
+  // ── TASKS ──
+  function renderTasks() {
+    const el = document.getElementById("task-list");
+    el.innerHTML = "";
+    TASKS.forEach(t => {
+      const done = !!tasks[t.id];
+      const btn = document.createElement("button");
+      btn.className = "task-row" + (done ? " done" : "");
+      btn.innerHTML = `<span class="task-icon">${t.icon}</span><span class="task-label">${t.label}</span><span class="task-check">${done ? "✅" : "⬜"}</span>`;
+      btn.onclick = () => toggleTask(t.id);
+      el.appendChild(btn);
+    });
+    updateProgress();
+  }
+  function toggleTask(id) {
+    tasks[id] = !tasks[id];
+    save("tasks_" + todayKey(), tasks);
+    renderTasks();
+  }
+  function updateProgress() {
+    const done = Object.values(tasks).filter(Boolean).length;
+    const pct = (done / TASKS.length) * 100;
+    document.getElementById("prog-fill").style.width = pct + "%";
+    document.getElementById("prog-text").textContent = done + " / " + TASKS.length + " taken";
+  }
+
+  // ── TIP ──
+  function newTip() {
+    const rest = TIPS.filter(t => t !== currentTip);
+    currentTip = rest[Math.floor(Math.random() * rest.length)];
+    document.getElementById("tip-text").textContent = currentTip;
+  }
+
+  // ── MILESTONES ──
+  function renderMilestones() {
+    const days = daysSince();
+    const next = MILESTONES.find(m => m.days > days);
+    const el = document.getElementById("milestone-list");
+    el.innerHTML = "";
+    MILESTONES.forEach(m => {
+      const done = days >= m.days;
+      const active = m === next;
+      const row = document.createElement("div");
+      row.className = "milestone-row" + (done ? " done" : active ? " active" : "");
+      const daysText = done ? "Gehaald 🎉" : active ? (m.days - days) + " dagen" : "dag " + m.days;
+      row.innerHTML = `
+        <span class="milestone-emoji">${done ? "✅" : m.emoji}</span>
+        <div style="flex:1">
+          <div class="milestone-label">${m.label}</div>
+          <div class="milestone-date">${m.date}</div>
+        </div>
+        <div class="milestone-days">${daysText}</div>`;
+      el.appendChild(row);
+    });
+  }
+
+  // ── STATS ──
+  function renderStats() {
+    const days = daysSince();
+    const stats = [
+      { label: "Dagen clean",                   value: days },
+      { label: "Weken clean",                   value: Math.floor(days / 7) },
+      { label: "Geschatte joints niet gerookt", value: days * 3 },
+      { label: "Geld bespaard (€5/dag est.)",   value: "€" + (days * 5) },
+    ];
+    const el = document.getElementById("stats-list");
+    el.innerHTML = "";
+    stats.forEach(s => {
+      const row = document.createElement("div");
+      row.className = "stat-row";
+      row.innerHTML = `<span class="stat-label">${s.label}</span><span class="stat-value">${s.value}</span>`;
+      el.appendChild(row);
+    });
+  }
+
+  // ── CRAVINGS ──
+  function saveCraving() {
+    const input = document.getElementById("craving-input");
+    const text = input.value.trim();
+    if (!text) return;
+    const now = new Date();
+    const entry = {
+      id: Date.now(),
+      text,
+      date: now.toLocaleDateString("nl-NL", { day: "numeric", month: "long", year: "numeric" }),
+      time: now.toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" }),
+    };
+    cravings.unshift(entry);
+    save("cravings", cravings);
+    input.value = "";
+    document.getElementById("save-btn").disabled = true;
+    renderCravings();
+  }
+  function deleteCraving(id) {
+    cravings = cravings.filter(c => c.id !== id);
+    save("cravings", cravings);
+    renderCravings();
+  }
+  function renderCravings() {
+    const el = document.getElementById("craving-log");
+    if (cravings.length === 0) {
+      el.innerHTML = `<div class="empty-state">Nog geen cravings gelogd.<br>Hopelijk blijft het zo 💪</div>`;
+      return;
+    }
+    let html = `<div class="card"><div class="card-title">Eerdere cravings (${cravings.length})</div>`;
+    cravings.forEach(c => {
+      html += `<div class="craving-entry">
+        <div class="craving-meta">${c.date} · ${c.time}</div>
+        <div class="craving-text">${c.text.replace(/</g,"&lt;")}</div>
+        <button class="delete-btn" onclick="deleteCraving(${c.id})">verwijder</button>
+      </div>`;
+    });
+    html += "</div>";
+    el.innerHTML = html;
+  }
+
+  // ── TABS ──
+  function switchTab(name, btn) {
+    document.querySelectorAll(".tab-panel").forEach(p => p.classList.remove("active"));
+    document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+    document.getElementById("tab-" + name).classList.add("active");
+    btn.classList.add("active");
+  }
+</script>
+</body>
+</html>
